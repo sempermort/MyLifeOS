@@ -37,7 +37,7 @@
       <button class="nav-item active" data-view="dashboard"><span>◫</span> Overview</button>
       <button class="nav-item" data-view="activities"><span>☑</span> Daily activities</button>
       <button class="nav-item" data-view="evaluations"><span>◎</span> Evaluations</button>
-      <button class="nav-item" data-view="goals"><span>⚑</span> Goals <em>soon</em></button>
+      <button class="nav-item" data-view="goals"><span>⚑</span> Goals</button>
       <div class="nav-label">LIFE DIMENSIONS</div>
       <div id="dimension-nav"></div>
       <div class="sidebar-bottom">
@@ -94,7 +94,9 @@
       </section>
 
       <section id="view-goals" class="view hidden">
-        <div class="empty-state panel"><div class="empty-icon">⚑</div><h3>Goals are next</h3><p class="muted">The next development phase will add goal setting, milestones and deadlines.</p></div>
+        <div class="section-heading"><div><h3>Goals & milestones</h3><p class="muted">Turn intentions into clear targets, next steps and dates.</p></div><button class="btn primary" id="add-goal">＋ New goal</button></div>
+        <div class="toolbar"><select id="goal-filter"><option value="active">Active goals</option><option value="all">All goals</option><option value="completed">Completed goals</option></select></div>
+        <div id="goal-list" class="goal-list"></div>
       </section>
 
       <section id="view-dimension" class="view hidden">
@@ -114,6 +116,26 @@
       <label>Details / evidence<textarea id="activity-notes" rows="4" placeholder="What did you do? What was the outcome?"></textarea></label>
       <div class="form-row"><label>Duration (minutes)<input id="activity-duration" type="number" min="0" max="1440" value="30"></label><label>Completed<select id="activity-completed"><option value="true">Yes</option><option value="false">In progress</option></select></label></div>
       <div class="modal-actions"><button type="button" class="btn secondary" id="cancel-modal">Cancel</button><button type="submit" class="btn primary">Save activity</button></div>
+    </form>
+  </dialog>
+  <dialog id="goal-dialog" class="modal">
+    <form id="goal-form">
+      <div class="modal-heading"><div><p class="eyebrow">GOAL SETTING</p><h3 id="goal-modal-title">New goal</h3></div><button type="button" class="icon-btn" data-close-dialog="goal-dialog" aria-label="Close">✕</button></div>
+      <input type="hidden" id="goal-id">
+      <label>Goal title<input id="goal-title" maxlength="120" required placeholder="What do you want to achieve?"></label>
+      <label>Life dimension<select id="goal-category" required></select></label>
+      <label>Description<textarea id="goal-description" rows="3" placeholder="Why does this matter? What does success look like?"></textarea></label>
+      <label>Deadline<input id="goal-deadline" type="date" required></label>
+      <div class="modal-actions"><button type="button" class="btn secondary" data-close-dialog="goal-dialog">Cancel</button><button type="submit" class="btn primary">Save goal</button></div>
+    </form>
+  </dialog>
+  <dialog id="milestone-dialog" class="modal">
+    <form id="milestone-form">
+      <div class="modal-heading"><div><p class="eyebrow">NEXT STEP</p><h3>Add milestone</h3></div><button type="button" class="icon-btn" data-close-dialog="milestone-dialog" aria-label="Close">✕</button></div>
+      <input type="hidden" id="milestone-goal-id">
+      <label>Milestone<input id="milestone-title" maxlength="120" required placeholder="A measurable step toward your goal"></label>
+      <label>Target date<input id="milestone-deadline" type="date"></label>
+      <div class="modal-actions"><button type="button" class="btn secondary" data-close-dialog="milestone-dialog">Cancel</button><button type="submit" class="btn primary">Add milestone</button></div>
     </form>
   </dialog>
   <div id="toast" class="toast" role="status"></div>

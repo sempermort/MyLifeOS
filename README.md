@@ -45,10 +45,12 @@ You can also drag the project folder into Netlify Drop for a quick test deployme
 - Daily activity create, read, update and delete
 - Search and dimension filtering
 - Daily/weekly/monthly self-evaluation records
+- Goal setting with life dimensions, deadlines, milestones and completion tracking
 - Dashboard activity metrics and a 7-day chart
 - Responsive desktop/mobile layout
 
 ## Important notes
 - Supabase email confirmation may be enabled by default. If enabled, users must confirm their email before signing in.
-- This is an initial foundation, not yet the complete product. Goal management, dedicated financial/farm/relationship modules, richer analytics, CSV/Excel export, backups and PWA/offline support are planned next.
+- This is an initial foundation, not yet the complete product. Dedicated financial/farm/relationship modules, richer analytics, CSV/Excel export, backups and PWA/offline support are planned next.
 - Evaluation scores are reflection aids, not measures of spiritual worth. Keep written evidence and reflections alongside numbers.
+- If you already ran the initial database setup, rerun `sql/schema.sql` to create the goals and milestones tables and their row-level security policies.

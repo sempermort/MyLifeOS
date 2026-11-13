@@ -1,5 +1,5 @@
 import { supabase, isConfigured } from "./supabase.js";
-import { listActivities, saveActivity, deleteActivity, listEvaluations, saveEvaluation } from "./data.js";
+import { listActivities, saveActivity, deleteActivity, listEvaluations, saveEvaluation, listGoals, saveGoal, deleteGoal, saveMilestone, updateMilestone, deleteMilestone } from "./data.js";
 
 const dimensions = [
   { key:"spiritual", name:"Spiritual life", icon:"✧", description:"Prayer, Bible study, Sabbath, evangelism and service." },
@@ -13,7 +13,7 @@ const dimensions = [
 ];
 const $ = s => document.querySelector(s);
 const today = new Date().toLocaleDateString("en-CA");
-let user = null, activities = [], evaluations = [], currentView = "dashboard", chart = null, authMode = "signin";
+let user = null, activities = [], evaluations = [], goals = [], currentView = "dashboard", chart = null, authMode = "signin";
 
 function toast(message){const el=$("#toast");el.textContent=message;el.classList.add("show");setTimeout(()=>el.classList.remove("show"),2600)}
 function escapeHTML(value=""){return String(value).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
@@ -24,13 +24,14 @@ function populateDimensions(){
   $("#dimension-nav").innerHTML=dimensions.map(d=>`<button class="nav-item" data-dimension="${d.key}"><span>${d.icon}</span>${d.name}</button>`).join("");
   $("#activity-category").innerHTML=dimensions.map(d=>`<option value="${d.key}">${d.name}</option>`).join("");
   $("#activity-filter").innerHTML='<option value="all">All dimensions</option>'+dimensions.map(d=>`<option value="${d.key}">${d.name}</option>`).join("");
+  $("#goal-category").innerHTML=dimensions.map(d=>`<option value="${d.key}">${d.name}</option>`).join("");
   $("#score-fields").innerHTML=dimensions.map(d=>`<div class="score-input"><label for="score-${d.key}">${d.name}</label><input id="score-${d.key}" type="number" min="0" max="5" step="1" value="0" required></div>`).join("");
 }
 async function refresh(){
-  [activities,evaluations]=await Promise.all([listActivities(user.id),listEvaluations(user.id)]);
+  [activities,evaluations,goals]=await Promise.all([listActivities(user.id),listEvaluations(user.id),listGoals(user.id)]);
   renderAll();
 }
-function renderAll(){renderDashboard();renderActivities();renderEvaluations();if(currentView==="dimension")renderDimension(currentDimension)}
+function renderAll(){renderDashboard();renderActivities();renderEvaluations();renderGoals();if(currentView==="dimension")renderDimension(currentDimension)}
 function renderDashboard(){
   const now=new Date(), start=new Date(now);start.setDate(now.getDate()-6);start.setHours(0,0,0,0);
   const week=activities.filter(a=>new Date(a.activity_date+"T00:00:00")>=start);
@@ -54,6 +55,31 @@ function renderActivities(){
 }
 function renderEvaluations(){
   $("#evaluation-history").innerHTML=evaluations.length?evaluations.map(e=>`<div class="history-item"><strong>${e.evaluation_period.toUpperCase()} · ${e.evaluation_date}</strong><span class="tag">${Number(e.average_score).toFixed(1)} / 5</span><p>${escapeHTML(e.reflection||"No reflection added.")}</p></div>`).join(""):'<p class="muted">Your evaluations will appear here.</p>';
+}
+function renderGoals(){
+  const filter=$("#goal-filter").value;
+  const rows=goals.filter(g=>filter==="all"||g.status===filter);
+  $("#goal-list").innerHTML=rows.length?rows.map(g=>{
+    const milestones=[...(g.goal_milestones||[])].sort((a,b)=>(a.deadline||"9999-12-31").localeCompare(b.deadline||"9999-12-31"));
+    const completed=milestones.filter(m=>m.completed).length;
+    const progress=milestones.length?Math.round(completed/milestones.length*100):0;
+    const overdue=g.status==="active"&&g.deadline<today;
+    return `<article class="panel goal-card"><div class="goal-card-heading"><div><span class="tag">${escapeHTML(dimension(g.category)?.name||g.category)}</span><span class="tag ${g.status==="completed"?"goal-complete":overdue?"goal-overdue":""}">${g.status==="completed"?"Completed":overdue?"Overdue":"Due "+escapeHTML(g.deadline)}</span><h3>${escapeHTML(g.title)}</h3>${g.description?`<p class="muted">${escapeHTML(g.description)}</p>`:""}</div><div class="goal-actions"><button class="mini-btn" data-goal-edit="${escapeHTML(g.id)}">Edit</button><button class="mini-btn" data-goal-toggle="${escapeHTML(g.id)}">${g.status==="completed"?"Reopen":"Complete"}</button><button class="mini-btn danger" data-goal-delete="${escapeHTML(g.id)}">Delete</button></div></div><div class="goal-progress-label"><span>${completed} of ${milestones.length} milestones complete</span><span>${progress}%</span></div><div class="progress"><span style="width:${progress}%"></span></div><div class="milestone-list">${milestones.map(m=>`<div class="milestone-row"><button class="milestone-check ${m.completed?"checked":""}" data-milestone-toggle="${escapeHTML(m.id)}" aria-label="${m.completed?"Mark incomplete":"Mark complete"}" aria-pressed="${m.completed}">${m.completed?"✓":""}</button><span class="milestone-title ${m.completed?"completed":""}">${escapeHTML(m.title)}</span>${m.deadline?`<small class="${!m.completed&&m.deadline<today?"overdue-text":""}">${escapeHTML(m.deadline)}</small>`:""}<button class="mini-btn danger" data-milestone-delete="${escapeHTML(m.id)}" aria-label="Delete milestone">×</button></div>`).join("")||'<p class="muted milestone-empty">No milestones yet. Add the first step toward this goal.</p>'}</div><button class="text-button" data-milestone-add="${escapeHTML(g.id)}">＋ Add milestone</button></article>`;
+  }).join(""):'<div class="empty-state panel"><div class="empty-icon">⚑</div><h3>${filter==="active"?"No active goals yet":"No goals found"}</h3><p class="muted">Set a clear target and deadline, then break it into milestones.</p><button class="btn primary" data-new-goal>＋ Create a goal</button></div>';
+}
+function openGoal(record=null){
+  $("#goal-form").reset();$("#goal-id").value=record?.id||"";$("#goal-title").value=record?.title||"";$("#goal-category").value=record?.category||"spiritual";$("#goal-description").value=record?.description||"";$("#goal-deadline").value=record?.deadline||today;$("#goal-modal-title").textContent=record?"Edit goal":"New goal";$("#goal-dialog").showModal();
+}
+async function handleGoalSubmit(event){
+  event.preventDefault();const id=$("#goal-id").value||undefined;
+  const record={id,title:$("#goal-title").value.trim(),category:$("#goal-category").value,description:$("#goal-description").value.trim(),deadline:$("#goal-deadline").value};
+  if(!record.title||!record.deadline){toast("Please enter a goal title and deadline.");return}
+  try{await saveGoal(user.id,record);$("#goal-dialog").close();await refresh();toast(id?"Goal updated":"Goal created")}catch(e){toast(e.message||"Could not save goal")}
+}
+async function handleMilestoneSubmit(event){
+  event.preventDefault();const record={goal_id:$("#milestone-goal-id").value,title:$("#milestone-title").value.trim(),deadline:$("#milestone-deadline").value||null};
+  if(!record.title){toast("Please enter a milestone.");return}
+  try{await saveMilestone(user.id,record);$("#milestone-dialog").close();await refresh();toast("Milestone added")}catch(e){toast(e.message||"Could not save milestone")}
 }
 let currentDimension=null;
 function renderDimension(key){const d=dimension(key);if(!d)return;currentDimension=key;$("#dimension-title").textContent=d.name;$("#dimension-description").textContent=d.description;const rows=activities.filter(a=>a.category===key);$("#dimension-activity-list").innerHTML=rows.length?rows.map(a=>`<div class="recent-item"><div><strong>${escapeHTML(a.title)}</strong><small>${a.activity_date} · ${escapeHTML(a.notes||"")}</small></div><span class="tag">${a.completed?"Completed":"In progress"}</span></div>`).join(""):'<p class="muted">No records in this dimension yet.</p>';setView("dimension")}
@@ -83,8 +109,17 @@ async function init(){
   $("#quick-add").addEventListener("click",()=>openActivity());$("#add-activity").addEventListener("click",()=>openActivity());$("#dimension-add").addEventListener("click",()=>openActivity(null,currentDimension));
   $("#close-modal").addEventListener("click",()=>$("#activity-dialog").close());$("#cancel-modal").addEventListener("click",()=>$("#activity-dialog").close());
   $("#activity-form").addEventListener("submit",handleActivitySubmit);$("#evaluation-form").addEventListener("submit",handleEvaluationSubmit);
+  $("#add-goal").addEventListener("click",()=>openGoal());$("#goal-form").addEventListener("submit",handleGoalSubmit);$("#milestone-form").addEventListener("submit",handleMilestoneSubmit);$("#goal-filter").addEventListener("change",renderGoals);
   $("#activity-search").addEventListener("input",renderActivities);$("#activity-filter").addEventListener("change",renderActivities);
   document.body.addEventListener("click",async e=>{
+    const close=e.target.closest("[data-close-dialog]");if(close){$("#"+close.dataset.closeDialog).close();return}
+    if(e.target.closest("[data-new-goal]")){openGoal();return}
+    const goalEdit=e.target.closest("[data-goal-edit]");if(goalEdit){openGoal(goals.find(g=>String(g.id)===goalEdit.dataset.goalEdit));return}
+    const milestoneAdd=e.target.closest("[data-milestone-add]");if(milestoneAdd){$("#milestone-form").reset();$("#milestone-goal-id").value=milestoneAdd.dataset.milestoneAdd;$("#milestone-dialog").showModal();return}
+    const milestoneToggle=e.target.closest("[data-milestone-toggle]");if(milestoneToggle){const milestone=goals.flatMap(g=>g.goal_milestones||[]).find(m=>String(m.id)===milestoneToggle.dataset.milestoneToggle);if(milestone){try{await updateMilestone(user.id,milestone.id,{completed:!milestone.completed});await refresh()}catch(err){toast(err.message||"Could not update milestone")}}return}
+    const milestoneDelete=e.target.closest("[data-milestone-delete]");if(milestoneDelete&&confirm("Delete this milestone?")){try{await deleteMilestone(user.id,milestoneDelete.dataset.milestoneDelete);await refresh();toast("Milestone deleted")}catch(err){toast(err.message||"Could not delete milestone")}return}
+    const goalToggle=e.target.closest("[data-goal-toggle]");if(goalToggle){const goal=goals.find(g=>String(g.id)===goalToggle.dataset.goalToggle);if(goal){try{await saveGoal(user.id,{id:goal.id,title:goal.title,category:goal.category,description:goal.description,deadline:goal.deadline,status:goal.status==="completed"?"active":"completed"});await refresh();toast(goal.status==="completed"?"Goal reopened":"Goal completed")}catch(err){toast(err.message||"Could not update goal")}}return}
+    const goalDelete=e.target.closest("[data-goal-delete]");if(goalDelete&&confirm("Delete this goal and all its milestones? This cannot be undone.")){try{await deleteGoal(user.id,goalDelete.dataset.goalDelete);await refresh();toast("Goal deleted")}catch(err){toast(err.message||"Could not delete goal")}return}
     const nav=e.target.closest("[data-view]");if(nav){setView(nav.dataset.view);return}
     const go=e.target.closest("[data-go]");if(go){setView(go.dataset.go);return}
     const dim=e.target.closest("[data-dimension]");if(dim){renderDimension(dim.dataset.dimension);return}
